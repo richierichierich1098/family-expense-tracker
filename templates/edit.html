@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Transaction - Family Finance Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 leading-normal tracking-normal min-h-screen pb-20 md:pb-6">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <span class="text-xl sm:text-2xl">🏠</span>
+                <span class="text-base sm:text-lg font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent hidden sm:inline-block">Family Finance Ledger</span>
+                <span class="text-base font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent sm:hidden inline-block">Family Ledger</span>
+                
+                <!-- Desktop navigation tabs -->
+                <div class="hidden md:flex items-center gap-2 ml-4 border-l border-slate-800/60 pl-4">
+                    <a href="/" class="px-3 py-1.5 rounded-full text-xs font-bold transition text-slate-400 hover:text-white">
+                        Dashboard
+                    </a>
+                    <a href="/ledger" class="px-3 py-1.5 rounded-full text-xs font-bold transition text-slate-400 hover:text-white">
+                        Audit Ledger
+                    </a>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- User Profile badge -->
+                <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-800 px-2.5 sm:px-3.5 py-1.5 rounded-full border border-slate-700/60">
+                    <span class="text-xs sm:text-sm">
+                        {% if current_user.avatar %}{{ current_user.avatar }}
+                        {% elif current_user.username == 'papa' %}👨
+                        {% elif current_user.username == 'mama' %}👩
+                        {% else %}👦{% endif %}
+                    </span>
+                    <span class="text-[11px] sm:text-xs font-semibold text-slate-200">{{ current_user.display_name }}</span>
+                </div>
+                
+                <!-- Logout Button -->
+                <a href="/logout" class="text-[11px] sm:text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/50 hover:bg-rose-500/20 hover:border-rose-500/30 border border-slate-700/60 px-2.5 sm:px-3 py-1.5 rounded-full transition-all duration-150">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto p-4 md:p-6 mt-4">
+        <!-- Edit Form Card -->
+        <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
+            <div class="mb-5 border-b border-slate-100 pb-4">
+                <h3 class="text-lg font-bold text-slate-900">Modify Ledger Entry</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Correct details for transaction ID #{{ tx[0] }}.</p>
+            </div>
+            
+            <form action="/edit/{{ tx[0] }}" method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Transaction Type</label>
+                    <input type="hidden" name="type" id="tx-type-input" value="{{ tx[4] }}">
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Expense Toggle Button -->
+                        <button type="button" id="btn-expense" onclick="setTxType('Expense')"
+                            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-bold transition-all duration-150">
+                            <span class="text-xl mb-1">📉</span>
+                            <span class="text-[11px] uppercase tracking-wider">Expense (-)</span>
+                        </button>
+                        <!-- Income Toggle Button -->
+                        <button type="button" id="btn-income" onclick="setTxType('Income')"
+                            class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-bold transition-all duration-150">
+                            <span class="text-xl mb-1">📈</span>
+                            <span class="text-[11px] uppercase tracking-wider">Income (+)</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Transaction Date</label>
+                    <input type="date" name="date" id="tx-date-input" value="{{ date_input_val }}" required class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-slate-800">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Source Account</label>
+                    <select name="account_name" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                        {% for acc in accounts %}
+                        <option value="{{ acc[1] }}" {% if acc[1] == tx[5] %}selected{% endif %}>{{ acc[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Category Group</label>
+                    <select name="category_select" id="category-select" onchange="handleCategoryChange()" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+                
+                <!-- Custom Category Input (hidden by default) -->
+                <div id="custom-category-container" class="hidden">
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5 mt-3">Custom Category Name</label>
+                    <input type="text" id="custom-category-input" name="custom_category" placeholder="e.g. Healthcare, Subscriptions" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Logged By (Creator)</label>
+                    <select name="user_id" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                        {% for user in users %}
+                        <option value="{{ user[0] }}" {% if user[0] == tx[7] %}selected{% endif %}>{{ user[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Amount (INR)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3 text-slate-400 font-bold text-sm">₹</span>
+                        <input type="number" step="0.01" name="amount" value="{{ tx[3] }}" required placeholder="0.00" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl py-3 pl-7 pr-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Memo/Description</label>
+                    <input type="text" name="description" value="{{ tx[2] }}" placeholder="What was this spent on?" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 placeholder:text-slate-400">
+                </div>
+                
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition duration-150 shadow-md">
+                        Save Changes
+                    </button>
+                    <a href="/ledger" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3.5 rounded-xl text-center transition duration-150">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile -->
+    <div class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 text-white py-2.5 px-6 flex justify-around items-center z-50 md:hidden shadow-lg">
+        <a href="/" class="flex flex-col items-center gap-1 text-slate-400">
+            <span class="text-lg">📊</span>
+            <span class="text-[10px] font-bold">Dashboard</span>
+        </a>
+        <a href="/ledger" class="flex flex-col items-center gap-1 text-slate-400">
+            <span class="text-lg">📜</span>
+            <span class="text-[10px] font-bold">Audit Ledger</span>
+        </a>
+    </div>
+
+    <!-- Script to Handle dynamic category switches -->
+    <script>
+        const expenseCategories = {{ expense_categories | tojson }};
+        const incomeCategories = {{ income_categories | tojson }};
+        const activeCategory = {{ tx[6] | tojson }};
+
+        function handleCategoryChange() {
+            const select = document.getElementById('category-select');
+            const customContainer = document.getElementById('custom-category-container');
+            const customInput = document.getElementById('custom-category-input');
+            
+            if (select.value === '__custom__') {
+                customContainer.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customContainer.classList.add('hidden');
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+
+        function setTxType(type) {
+            document.getElementById('tx-type-input').value = type;
+            const btnExpense = document.getElementById('btn-expense');
+            const btnIncome = document.getElementById('btn-income');
+            const categorySelect = document.getElementById('category-select');
+            
+            document.getElementById('custom-category-container').classList.add('hidden');
+            document.getElementById('custom-category-input').required = false;
+            document.getElementById('custom-category-input').value = '';
+            
+            let optionsHtml = '';
+            
+            if (type === 'Expense') {
+                btnExpense.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-rose-500 bg-rose-50/40 text-rose-700 font-bold transition-all duration-150 flex-1";
+                btnIncome.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-50 font-bold transition-all duration-150 flex-1";
+                
+                expenseCategories.forEach(cat => {
+                    const selected = cat === activeCategory ? 'selected' : '';
+                    optionsHtml += `<option value="${cat}" ${selected}>${cat}</option>`;
+                });
+            } else {
+                btnIncome.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 text-emerald-700 font-bold transition-all duration-150 flex-1";
+                btnExpense.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-50 font-bold transition-all duration-150 flex-1";
+                
+                incomeCategories.forEach(cat => {
+                    const selected = cat === activeCategory ? 'selected' : '';
+                    optionsHtml += `<option value="${cat}" ${selected}>${cat}</option>`;
+                });
+            }
+            
+            optionsHtml += `<option value="__custom__" class="font-bold text-indigo-600">+ Add Custom Category...</option>`;
+            categorySelect.innerHTML = optionsHtml;
+            handleCategoryChange();
+        }
+
+        // Initialize state on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const initialType = "{{ tx[4] }}";
+            setTxType(initialType);
+        });
+    </script>
+</body>
+</html>

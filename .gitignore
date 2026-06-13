@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Databases (prevent personal ledger database from leaking)
+*.db
+
+# Archives (prevent backup zips)
+*.zip
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Editor / OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

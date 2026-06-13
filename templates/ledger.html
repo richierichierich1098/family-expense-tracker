@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Ledger - Family Finance Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+    <!-- jsPDF and jsPDF-AutoTable libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 leading-normal tracking-normal min-h-screen pb-20 md:pb-6">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <span class="text-xl sm:text-2xl">🏠</span>
+                <span class="text-base sm:text-lg font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent hidden sm:inline-block">Family Finance Ledger</span>
+                <span class="text-base font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent sm:hidden inline-block">Family Ledger</span>
+                
+                <!-- Desktop navigation tabs -->
+                <div class="hidden md:flex items-center gap-2 ml-4 border-l border-slate-800/60 pl-4">
+                    <a href="/" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'dashboard' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="/ledger" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'ledger' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Audit Ledger
+                    </a>
+                    <a href="/family" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'family' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Family Members
+                    </a>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- User Profile badge -->
+                <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-800 px-2.5 sm:px-3.5 py-1.5 rounded-full border border-slate-700/60">
+                    <span class="text-xs sm:text-sm">
+                        {% if current_user.avatar %}{{ current_user.avatar }}
+                        {% elif current_user.username == 'papa' %}👨
+                        {% elif current_user.username == 'mama' %}👩
+                        {% else %}👦{% endif %}
+                    </span>
+                    <span class="text-[11px] sm:text-xs font-semibold text-slate-200">{{ current_user.display_name }}</span>
+                    <span class="text-[9px] bg-indigo-50/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider font-semibold hidden md:inline-block">{{ current_user.role }}</span>
+                </div>
+                
+                <!-- Logout Button -->
+                <a href="/logout" class="text-[11px] sm:text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/50 hover:bg-rose-500/20 hover:border-rose-500/30 border border-slate-700/60 px-2.5 sm:px-3 py-1.5 rounded-full transition-all duration-150">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+        
+        <!-- Page Title Header (Mobile view tab header) -->
+        <div class="flex flex-col md:hidden">
+            <h2 class="text-xl font-bold text-slate-900">Historical Audit Ledger</h2>
+            <p class="text-xs text-slate-400">Search and filter transaction records below.</p>
+        </div>
+
+        <!-- Filter & Search Panel -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <span>📅</span> Filter Ledger Transactions
+            </h3>
+            
+            <form action="/ledger" method="GET" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">From Date</label>
+                    <input type="date" name="from_date" value="{{ from_date }}" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-xs sm:text-sm text-slate-800">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">To Date</label>
+                    <input type="date" name="to_date" value="{{ to_date }}" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-xs sm:text-sm text-slate-800">
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition duration-150 text-xs shadow-sm shadow-slate-900/10">
+                        Apply Filter
+                    </button>
+                    <button type="button" onclick="downloadPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-3 rounded-xl transition duration-150 text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/15" title="Download report as PDF">
+                        <span>📥</span> PDF
+                    </button>
+                    {% if from_date or to_date %}
+                    <a href="/ledger" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition duration-150 text-xs flex items-center justify-center">
+                        Clear
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+            
+            <!-- Quick filters -->
+            <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100">
+                <button type="button" onclick="setQuickFilter('today')" class="text-[11px] bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 px-3 py-1.5 rounded-full transition font-semibold">Today</button>
+                <button type="button" onclick="setQuickFilter('this_month')" class="text-[11px] bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 px-3 py-1.5 rounded-full transition font-semibold">This Month</button>
+                <button type="button" onclick="setQuickFilter('last_30')" class="text-[11px] bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 px-3 py-1.5 rounded-full transition font-semibold">Last 30 Days</button>
+            </div>
+        </section>
+
+        <!-- Filtered Period Summary (Income vs Expense Stats) -->
+        <div class="bg-indigo-50/40 border border-indigo-100/60 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-700">Period Summary Stats</span>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <span class="text-xs text-slate-500">Income: <strong class="text-emerald-600 font-extrabold">₹{{ "{:,.2f}".format(period_summary.Income) }}</strong></span>
+                <span class="text-xs text-slate-500">Expenses: <strong class="text-rose-500 font-extrabold">₹{{ "{:,.2f}".format(period_summary.Expense) }}</strong></span>
+                <span class="text-xs text-slate-500">Net savings: <strong class="{% if period_summary.Income - period_summary.Expense >= 0 %}text-indigo-600{% else %}text-rose-600{% endif %} font-extrabold">₹{{ "{:,.2f}".format(period_summary.Income - period_summary.Expense) }}</strong></span>
+            </div>
+        </div>
+
+        <!-- Transaction History Ledger -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Historical Audit Trail</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Chronological record of family expenses and income entries.</p>
+                </div>
+                <span class="text-xs bg-slate-200/60 text-slate-600 px-3 py-1.5 rounded-full font-bold">Ledger Active</span>
+            </div>
+            <!-- Desktop view table (hidden on mobile, shown on md and up) -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/70 border-b border-slate-100 text-xs font-bold uppercase tracking-wider text-slate-400">
+                            <th class="p-4">Timestamp</th>
+                            <th class="p-4">Allocation Details</th>
+                            <th class="p-4">Category Group</th>
+                            <th class="p-4">Payment Node</th>
+                            <th class="p-4">Logged By</th>
+                            <th class="p-4 text-right">Magnitude</th>
+                            <th class="p-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        {% for day, txs in transactions_by_day.items() %}
+                        <!-- Day Header Divider -->
+                        <tr class="bg-slate-100/50 font-bold text-slate-700 text-xs">
+                            <td colspan="7" class="p-3 pl-4 border-y border-slate-200/50 text-slate-500 bg-slate-50/40 font-semibold tracking-wide">
+                                📅 {{ day }}
+                            </td>
+                        </tr>
+                        {% for tx in txs %}
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="p-4 font-medium text-slate-500 whitespace-nowrap">{{ tx[1].split()[1] }}</td>
+                            <td class="p-4 font-semibold text-slate-700">
+                                <div>{{ tx[2] }}</div>
+                            </td>
+                            <td class="p-4">
+                                <span class="px-2 py-0.5 text-xs rounded-full font-bold
+                                    {% if 'Groceries' in tx[6] %}bg-amber-50 text-amber-700 border border-amber-100
+                                    {% elif 'Utilities' in tx[6] %}bg-blue-50 text-blue-700 border border-blue-100
+                                    {% elif 'Fuel' in tx[6] %}bg-purple-50 text-purple-700 border border-purple-100
+                                    {% elif 'Insurance' in tx[6] %}bg-cyan-50 text-cyan-700 border border-cyan-100
+                                    {% elif 'Entertainment' in tx[6] %}bg-pink-50 text-pink-700 border border-pink-100
+                                    {% else %}bg-emerald-50 text-emerald-700 border border-emerald-100{% endif %}">
+                                    {{ tx[6] }}
+                                </span>
+                            </td>
+                            <td class="p-4 font-medium text-slate-600 whitespace-nowrap">
+                                 {% if "Cash" in tx[5] or "Wallet" in tx[5] %}💵 {{ tx[5] }}
+                                 {% else %}🏦 {{ tx[5] }}{% endif %}
+                            </td>
+                            <td class="p-4 font-semibold text-slate-600">
+                                <span class="inline-flex items-center gap-1">
+                                    <span class="text-xs" title="{{ tx[7] }}">
+                                        {% if tx[7] == 'Papa' %}👨
+                                        {% elif tx[7] == 'Mama' %}👩
+                                        {% else %}👦{% endif %}
+                                    </span>
+                                    <span>{{ tx[7] }}</span>
+                                </span>
+                            </td>
+                            <td class="p-4 text-right font-extrabold {% if tx[4] == 'Expense' %}text-rose-500{% else %}text-emerald-600{% endif %}">
+                                {% if tx[4] == 'Expense' %}-{% else %}+{% endif %}₹{{ "{:,.2f}".format(tx[3]) }}
+                            </td>
+                            <td class="p-4 text-center whitespace-nowrap">
+                                <a href="/edit/{{ tx[0] }}" 
+                                   class="text-slate-300 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50/50 transition duration-150 inline-block mr-1" title="Edit record">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </a>
+                                <a href="/delete/{{ tx[0] }}" onclick="return confirm('Are you sure you want to delete this transaction?')" 
+                                   class="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50/50 transition duration-150 inline-block" title="Delete record">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endfor %}
+                        {% if not transactions_by_day %}
+                        <tr>
+                            <td colspan="7" class="p-8 text-center text-slate-400 font-medium bg-slate-50/20">No recorded transactions detected for this period. Choose another filter range.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile view list of cards (shown on mobile, hidden on md and up) -->
+            <div class="block md:hidden divide-y divide-slate-100">
+                {% for day, txs in transactions_by_day.items() %}
+                <!-- Day Header Divider -->
+                <div class="bg-slate-50/60 border-y border-slate-100 p-3 pl-4 font-bold text-slate-500 text-xs tracking-wide">
+                    📅 {{ day }}
+                </div>
+                {% for tx in txs %}
+                <div class="p-3.5 flex justify-between items-center bg-white hover:bg-slate-50/50 transition duration-150">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <!-- Emoji Indicator indicating type -->
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-base shrink-0
+                            {% if tx[4] == 'Expense' %}bg-rose-50 text-rose-500 border border-rose-100/50{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100/50{% endif %}">
+                            {% if tx[4] == 'Expense' %}📉{% else %}📈{% endif %}
+                        </div>
+                        <div class="flex flex-col min-w-0">
+                            <!-- Memo Description -->
+                            <span class="font-bold text-slate-800 text-sm truncate">{{ tx[2] }}</span>
+                            <!-- Metadata sub-line -->
+                            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-slate-400 mt-0.5 font-medium">
+                                <span>{{ tx[1].split()[1] }}</span>
+                                <span>•</span>
+                                <span>{% if "Cash" in tx[5] or "Wallet" in tx[5] %}💵 Cash{% else %}🏦 Bank{% endif %}</span>
+                                <span>•</span>
+                                <span class="inline-flex items-center gap-0.5 text-slate-500">
+                                    <span>
+                                        {% if tx[7] == 'Papa' %}👨
+                                        {% elif tx[7] == 'Mama' %}👩
+                                        {% else %}👦{% endif %}
+                                    </span>
+                                    <span>{{ tx[7] }}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <!-- Amount & Category Group -->
+                        <div class="flex flex-col items-end gap-0.5">
+                            <span class="font-extrabold text-sm {% if tx[4] == 'Expense' %}text-rose-500{% else %}text-emerald-600{% endif %}">
+                                {% if tx[4] == 'Expense' %}-{% else %}+{% endif %}₹{{ "{:,.2f}".format(tx[3]) }}
+                            </span>
+                            <span class="px-1.5 py-0.5 text-[9px] rounded-full font-bold uppercase tracking-wider
+                                {% if 'Groceries' in tx[6] %}bg-amber-50 text-amber-600 border border-amber-100/50
+                                {% elif 'Utilities' in tx[6] %}bg-blue-50 text-blue-600 border border-blue-100/50
+                                {% elif 'Fuel' in tx[6] %}bg-purple-50 text-purple-600 border border-purple-100/50
+                                {% elif 'Insurance' in tx[6] %}bg-cyan-50 text-cyan-600 border border-cyan-100/50
+                                {% elif 'Entertainment' in tx[6] %}bg-pink-50 text-pink-600 border border-pink-100/50
+                                {% else %}bg-emerald-50 text-emerald-600 border border-emerald-100/50{% endif %}">
+                                {{ tx[6].split(' ')[0] }}
+                            </span>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <a href="/edit/{{ tx[0] }}" 
+                           class="text-slate-300 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-indigo-50/50 transition duration-150" title="Edit record">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </a>
+                        <a href="/delete/{{ tx[0] }}" onclick="return confirm('Are you sure you want to delete this transaction?')" 
+                           class="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50/50 transition duration-150" title="Delete record">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endfor %}
+                {% if not transactions_by_day %}
+                <div class="p-8 text-center text-slate-400 font-medium bg-slate-50/20 text-sm">
+                    No recorded transactions detected for this period. Choose another filter range.
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile -->
+    <div class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 text-white py-2.5 px-6 flex justify-around items-center z-50 md:hidden shadow-lg">
+        <a href="/" class="flex flex-col items-center gap-1 {% if active_page == 'dashboard' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">📊</span>
+            <span class="text-[10px] font-bold">Dashboard</span>
+        </a>
+        <a href="/ledger" class="flex flex-col items-center gap-1 {% if active_page == 'ledger' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">📜</span>
+            <span class="text-[10px] font-bold">Audit Ledger</span>
+        </a>
+        <a href="/family" class="flex flex-col items-center gap-1 {% if active_page == 'family' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">👥</span>
+            <span class="text-[10px] font-bold">Family</span>
+        </a>
+    </div>
+
+    <!-- Quick Filters Redirection Script -->
+    <script>
+        function setQuickFilter(preset) {
+            const today = new Date();
+            let fromDate = '';
+            let toDate = '';
+            
+            const formatDate = (date) => {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
+            
+            if (preset === 'today') {
+                fromDate = formatDate(today);
+                toDate = formatDate(today);
+            } else if (preset === 'this_month') {
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                fromDate = formatDate(firstDay);
+                toDate = formatDate(today);
+            } else if (preset === 'last_30') {
+                const pastDate = new Date();
+                pastDate.setDate(today.getDate() - 30);
+                fromDate = formatDate(pastDate);
+                toDate = formatDate(today);
+            }
+            
+            window.location.href = `/ledger?from_date=${fromDate}&to_date=${toDate}`;
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Get date range from inputs
+            const fromDateInput = document.querySelector('input[name="from_date"]').value;
+            const toDateInput = document.querySelector('input[name="to_date"]').value;
+            const fromDateStr = fromDateInput ? fromDateInput : "Beginning";
+            const toDateStr = toDateInput ? toDateInput : "Present";
+            
+            // PDF Document Title
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.setTextColor(15, 23, 42); // Slate-900
+            doc.text("Family Finance Ledger", 14, 20);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Historical Audit Report: ${fromDateStr} to ${toDateStr}`, 14, 28);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 34);
+            
+            // Draw a separator line
+            doc.setDrawColor(226, 232, 240); // slate-200
+            doc.setLineWidth(0.5);
+            doc.line(14, 40, 196, 40);
+            
+            // Stats Section
+            doc.setFillColor(248, 250, 252); // slate-50
+            doc.roundedRect(14, 45, 182, 22, 3, 3, "F");
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105); // slate-600
+            doc.text("TOTAL INCOME", 20, 52);
+            doc.text("TOTAL EXPENSES", 80, 52);
+            doc.text("NET FLOW", 140, 52);
+            
+            doc.setFontSize(12);
+            // Dynamic values from backend context
+            const incomeVal = parseFloat("{{ period_summary.Income }}") || 0;
+            const expenseVal = parseFloat("{{ period_summary.Expense }}") || 0;
+            const netVal = incomeVal - expenseVal;
+            
+            doc.setTextColor(16, 185, 129); // emerald-600
+            doc.text(`+INR ${incomeVal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`, 20, 60);
+            
+            doc.setTextColor(239, 68, 68); // rose-500
+            doc.text(`-INR ${expenseVal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`, 80, 60);
+            
+            if (netVal >= 0) {
+                doc.setTextColor(79, 70, 229); // indigo-600
+                doc.text(`+INR ${netVal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`, 140, 60);
+            } else {
+                doc.setTextColor(239, 68, 68); // rose-500
+                doc.text(`-INR ${Math.abs(netVal).toLocaleString('en-IN', {minimumFractionDigits: 2})}`, 140, 60);
+            }
+            
+            // Build Table Data
+            const table = document.querySelector("table");
+            const rows = [];
+            
+            if (!table) {
+                alert("No transactions found to export!");
+                return;
+            }
+            
+            const tableRows = table.querySelectorAll("tbody tr");
+            let currentDay = "";
+            let rowCount = 0;
+            
+            tableRows.forEach(row => {
+                if (row.classList.contains("bg-slate-100/50")) {
+                    // Day divider row
+                    currentDay = row.textContent.replace("📅", "").trim();
+                    return;
+                }
+                
+                const cells = row.querySelectorAll("td");
+                if (cells.length < 6) return; // Action or empty rows
+                
+                // Using textContent to read text from elements even if hidden via CSS (on mobile)
+                const time = cells[0].textContent.trim();
+                const details = cells[1].querySelector("div") ? cells[1].querySelector("div").textContent.trim() : cells[1].textContent.trim();
+                const category = cells[2].textContent.trim();
+                const paymentNode = cells[3].textContent.trim();
+                const loggedBy = cells[4].textContent.trim();
+                const magnitude = cells[5].textContent.trim();
+                
+                rows.push([
+                    `${currentDay} ${time}`,
+                    details,
+                    category,
+                    paymentNode,
+                    loggedBy,
+                    magnitude
+                ]);
+                rowCount++;
+            });
+            
+            if (rowCount === 0) {
+                alert("No transaction entries found for the selected dates.");
+                return;
+            }
+            
+            // Render Table via jsPDF-AutoTable
+            doc.autoTable({
+                startY: 75,
+                head: [['Timestamp', 'Details', 'Category', 'Payment Account', 'Logged By', 'Amount']],
+                body: rows,
+                theme: 'striped',
+                headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 }, // Slate-900
+                columnStyles: {
+                    5: { halign: 'right', fontStyle: 'bold' } // Right align amount
+                },
+                styles: { fontSize: 8, cellPadding: 3 }
+            });
+            
+            doc.save(`family_ledger_report_${fromDateStr}_to_${toDateStr}.pdf`);
+        }
+    </script>
+</body>
+</html>

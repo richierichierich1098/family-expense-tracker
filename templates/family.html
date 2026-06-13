@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Members - Family Finance Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 leading-normal tracking-normal min-h-screen pb-20 md:pb-6">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <span class="text-xl sm:text-2xl">🏠</span>
+                <span class="text-base sm:text-lg font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent hidden sm:inline-block">Family Finance Ledger</span>
+                <span class="text-base font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent sm:hidden inline-block">Family Ledger</span>
+                
+                <!-- Desktop navigation tabs -->
+                <div class="hidden md:flex items-center gap-2 ml-4 border-l border-slate-800/60 pl-4">
+                    <a href="/" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'dashboard' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="/ledger" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'ledger' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Audit Ledger
+                    </a>
+                    <a href="/family" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'family' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Family Members
+                    </a>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- User Profile badge -->
+                <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-800 px-2.5 sm:px-3.5 py-1.5 rounded-full border border-slate-700/60">
+                    <span class="text-xs sm:text-sm">
+                        {% if current_user.avatar %}{{ current_user.avatar }}
+                        {% elif current_user.username == 'papa' %}👨
+                        {% elif current_user.username == 'mama' %}👩
+                        {% else %}👦{% endif %}
+                    </span>
+                    <span class="text-[11px] sm:text-xs font-semibold text-slate-200">{{ current_user.display_name }}</span>
+                    <span class="text-[9px] bg-indigo-50/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider font-semibold hidden md:inline-block">{{ current_user.role }}</span>
+                </div>
+                
+                <!-- Logout Button -->
+                <a href="/logout" class="text-[11px] sm:text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/50 hover:bg-rose-500/20 hover:border-rose-500/30 border border-slate-700/60 px-2.5 sm:px-3 py-1.5 rounded-full transition-all duration-150">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+        
+        <!-- Page Title Header -->
+        <div class="flex flex-col">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-900">Family Members & Settings</h2>
+            <p class="text-xs sm:text-sm text-slate-400">Manage family access and profiles sharing this ledger.</p>
+        </div>
+
+        {% if error %}
+        <!-- Error Alert Banner -->
+        <div class="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-sm flex items-center gap-2.5 shadow-sm">
+            <span>⚠️</span>
+            <span class="font-medium">{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Grid: Profile List -->
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span>👥</span> Active Profiles ({{ users_list|length }})
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {% for user in users_list %}
+                        <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between hover:border-indigo-100 hover:bg-slate-50 transition duration-150">
+                            <div class="flex items-center gap-3">
+                                <!-- Profile Avatar Emoji -->
+                                <div class="w-12 h-12 rounded-full bg-slate-200/60 flex items-center justify-center text-2xl border border-slate-200/30 shrink-0">
+                                    {% if user[4] %}
+                                        {{ user[4] }}
+                                    {% else %}
+                                        {% if 'papa' in user[1] %}👨
+                                        {% elif 'mama' in user[1] %}👩
+                                        {% elif 'junior' in user[1] %}👦
+                                        {% elif user[3] == 'Parent' %}🧑‍💼
+                                        {% else %}👦{% endif %}
+                                    {% endif %}
+                                </div>
+                                <div class="flex flex-col min-w-0">
+                                    <span class="font-bold text-slate-800 text-sm truncate">{{ user[2] }}</span>
+                                    <span class="text-[10px] text-slate-400 mt-0.5">Username: @{{ user[1] }}</span>
+                                    <span class="mt-1 self-start px-2 py-0.5 text-[9px] rounded-full font-bold uppercase tracking-wider
+                                        {% if user[3] == 'Parent' %}bg-indigo-50 text-indigo-700 border border-indigo-100/50{% else %}bg-amber-50 text-amber-700 border border-amber-100/50{% endif %}">
+                                        {{ user[3] }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- Action button (only parents can delete, and cannot delete self) -->
+                            {% if current_user.role == 'Parent' %}
+                                {% if user[0] != current_user.user_id %}
+                                <a href="/family/delete/{{ user[0] }}" onclick="return confirm('Are you sure you want to remove this family member? All their recorded transactions will remain in audit trail, but they will not be able to log in.')" 
+                                   class="text-slate-300 hover:text-rose-500 p-2 rounded-xl hover:bg-rose-50 transition duration-150 shrink-0" title="Remove Profile">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </a>
+                                {% else %}
+                                <span class="text-[10px] bg-slate-100 text-slate-400 px-2 py-1 rounded-lg font-bold uppercase tracking-wider shrink-0" title="Your active profile">You</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Cloud Sync Card (Only visible on localhost) -->
+                    {% if is_localhost %}
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-6">
+                        <h3 class="text-base font-bold text-slate-900 mb-2 flex items-center gap-2">
+                            <span>☁️</span> Database Cloud Sync
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-4">Synchronize accounts, transactions, and users between this localhost and your live PythonAnywhere server.</p>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Pull Card -->
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between space-y-3">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-700 block">📥 Pull Live Data</span>
+                                    <span class="text-[11px] text-slate-400 mt-1 block">Download all latest data from your live website and overwrite this localhost database.</span>
+                                </div>
+                                <button type="button" onclick="syncDatabase('pull')" id="btn-sync-pull" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl hover:bg-slate-800 transition duration-150 text-xs shadow-sm">
+                                    Pull from Cloud
+                                </button>
+                            </div>
+                            
+                            <!-- Push Card -->
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between space-y-3">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-700 block">📤 Push Local Data</span>
+                                    <span class="text-[11px] text-slate-400 mt-1 block">Upload your local data to overwrite and update the live website database.</span>
+                                </div>
+                                <button type="button" onclick="syncDatabase('push')" id="btn-sync-push" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl hover:bg-indigo-700 transition duration-150 text-xs shadow-sm">
+                                    Push to Cloud
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Alert Banner -->
+                        <div id="sync-status" class="hidden mt-4 p-3 rounded-xl text-xs font-medium flex items-center gap-2 border"></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right Grid: Register/Add Form -->
+            <div class="lg:col-span-1">
+                {% if current_user.role == 'Parent' %}
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <h3 class="text-base font-bold text-slate-900 mb-1">Add Family Member</h3>
+                    <p class="text-xs text-slate-400 mb-4">Register a new profile to grant ledger access.</p>
+                    
+                    <form action="/family" method="POST" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Display Name</label>
+                            <input type="text" name="display_name" required placeholder="e.g. Grandma, Uncle Joe" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Username (Login Handle)</label>
+                            <input type="text" name="username" required placeholder="e.g. grandma12" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Ledger Permission Role</label>
+                            <select name="role" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                                <option value="Child">Child (Access to log, view & edit own transactions)</option>
+                                <option value="Parent">Parent (Full management access, edit & delete all entries)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Profile Avatar Emoji</label>
+                            <select name="avatar" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                                <option value="👩">👩 Wife / Mother / Woman</option>
+                                <option value="👨">👨 Husband / Father / Man</option>
+                                <option value="👦">👦 Son / Boy</option>
+                                <option value="👧">👧 Daughter / Girl</option>
+                                <option value="🧑‍💼">🧑‍💼 Parent / Professional (Neutral)</option>
+                                <option value="👩‍💼">👩‍💼 Professional (Female)</option>
+                                <option value="👵">👵 Grandma</option>
+                                <option value="👴">👴 Grandpa</option>
+                                <option value="🧑">🧑 Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Password</label>
+                            <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition duration-150 shadow-md">
+                            Add Profile
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <!-- Access Denied Card (Visible to Children role) -->
+                <div class="bg-amber-50/40 border border-amber-100/60 p-6 rounded-3xl text-center space-y-3">
+                    <span class="text-4xl block">🔒</span>
+                    <h4 class="font-bold text-slate-800 text-sm">Parent Privileges Required</h4>
+                    <p class="text-xs text-slate-400">Only Parent profiles are authorized to register new members or delete accounts.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile -->
+    <div class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 text-white py-2.5 px-6 flex justify-around items-center z-50 md:hidden shadow-lg">
+        <a href="/" class="flex flex-col items-center gap-1 {% if active_page == 'dashboard' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">📊</span>
+            <span class="text-[10px] font-bold">Dashboard</span>
+        </a>
+        <a href="/ledger" class="flex flex-col items-center gap-1 {% if active_page == 'ledger' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">📜</span>
+            <span class="text-[10px] font-bold">Audit Ledger</span>
+        </a>
+        <a href="/family" class="flex flex-col items-center gap-1 {% if active_page == 'family' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">👥</span>
+            <span class="text-[10px] font-bold">Family</span>
+        </a>
+    </div>
+
+    {% if is_localhost %}
+    <script>
+        function syncDatabase(action) {
+            const btnPull = document.getElementById('btn-sync-pull');
+            const btnPush = document.getElementById('btn-sync-push');
+            const statusDiv = document.getElementById('sync-status');
+            
+            // Disable buttons during sync
+            btnPull.disabled = true;
+            btnPush.disabled = true;
+            
+            statusDiv.className = "mt-4 p-3 rounded-xl text-xs font-medium flex items-center gap-2 border bg-blue-50 border-blue-100 text-blue-700";
+            statusDiv.innerHTML = `<span>⏳</span> Syncing database... Please wait.`;
+            statusDiv.classList.remove('hidden');
+            
+            fetch(`/local/sync/${action}`, {
+                method: 'POST'
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(res => {
+                btnPull.disabled = false;
+                btnPush.disabled = false;
+                
+                if (res.status === 200 && res.body.status === 'success') {
+                    statusDiv.className = "mt-4 p-3 rounded-xl text-xs font-medium flex items-center gap-2 border bg-emerald-50 border-emerald-100 text-emerald-700";
+                    statusDiv.innerHTML = `<span>✅</span> ${res.body.message}`;
+                    
+                    // Reload after 1.5 seconds to show new data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    const errMsg = res.body.message || 'An unexpected error occurred.';
+                    statusDiv.className = "mt-4 p-3 rounded-xl text-xs font-medium flex items-center gap-2 border bg-rose-50 border-rose-100 text-rose-700";
+                    statusDiv.innerHTML = `<span>❌</span> Sync failed: ${errMsg}`;
+                }
+            })
+            .catch(err => {
+                btnPull.disabled = false;
+                btnPush.disabled = false;
+                statusDiv.className = "mt-4 p-3 rounded-xl text-xs font-medium flex items-center gap-2 border bg-rose-50 border-rose-100 text-rose-700";
+                statusDiv.innerHTML = `<span>❌</span> Connection failed: ${err.message}`;
+            });
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

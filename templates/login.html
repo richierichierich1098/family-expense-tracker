@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Family Finance Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .profile-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .profile-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+        .shaker {
+            animation: shake 0.4s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 min-h-screen text-slate-100 flex items-center justify-center p-4 overflow-hidden relative">
+    
+    <!-- Decorative Ambient Glows -->
+    <div class="absolute w-96 h-96 bg-teal-500/10 rounded-full blur-3xl -top-20 -left-20 pointer-events-none"></div>
+    <div class="absolute w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -bottom-20 -right-20 pointer-events-none"></div>
+
+    <div class="w-full max-w-xl z-10">
+        <!-- Logo & Header -->
+        <div class="text-center mb-6 sm:mb-10">
+            <div class="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-teal-500 to-indigo-600 shadow-lg shadow-indigo-500/20 mb-3 sm:mb-4">
+                <span class="text-xl sm:text-2xl">🏠</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                Family Finance Ledger
+            </h1>
+            <p class="text-slate-400 mt-1 sm:mt-2 text-xs sm:text-sm">Secure access for managing household wealth</p>
+        </div>
+
+        <!-- Main Card Container -->
+        <div class="glass-panel rounded-3xl p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+            
+            {% if error %}
+            <!-- Error Alert -->
+            <div id="error-alert" class="mb-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-center gap-2.5 shaker">
+                <span>⚠️</span>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Step 1: Profile Selector -->
+            <div id="profile-step" class="transition-all duration-300">
+                <h3 class="text-base sm:text-lg font-medium text-slate-300 text-center mb-6 sm:mb-8">Who's tracking today?</h3>
+                
+                <div class="grid {% if users|length <= 3 %}grid-cols-3{% elif users|length == 4 %}grid-cols-2 sm:grid-cols-4{% else %}grid-cols-2 sm:grid-cols-3 md:grid-cols-4{% endif %} gap-2.5 sm:gap-4 mb-4 sm:mb-6 justify-center">
+                    {% for user in users %}
+                    <button type="button" onclick="selectProfile('{{ user.username }}', '{{ user.display_name }}', '{{ user.gradient }}', '{{ user.avatar }}')" 
+                            class="profile-card flex flex-col items-center p-2.5 sm:p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr {{ user.gradient }} flex items-center justify-center text-2xl sm:text-3xl mb-2 sm:mb-3 shadow-md">
+                            {{ user.avatar }}
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-200 truncate w-full text-center">{{ user.display_name }}</span>
+                        <span class="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">{{ user.role }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Step 2: Password Input Form -->
+            <form id="password-form" action="/login" method="POST" class="hidden transition-all duration-300">
+                <!-- Selected Profile Details -->
+                <div class="flex flex-col items-center mb-6">
+                    <div id="selected-avatar" class="w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-xl mb-3">
+                        <!-- Dynamic -->
+                    </div>
+                    <h3 id="selected-name" class="text-xl font-bold text-white"><!-- Dynamic --></h3>
+                    <p class="text-xs text-teal-400 font-semibold tracking-wide uppercase mt-1">Authenticating</p>
+                </div>
+
+                <!-- Form Fields -->
+                <input type="hidden" name="username" id="username-input">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="password" class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Password</label>
+                        <div class="relative">
+                            <input type="password" id="password" name="password" required placeholder="••••••••" 
+                                   class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl p-3.5 pr-12 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-slate-100 transition-all placeholder:text-slate-600">
+                            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition focus:outline-none">
+                                <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                            class="w-full py-3.5 rounded-xl bg-gradient-to-r from-teal-500 to-indigo-600 text-white font-semibold shadow-lg shadow-indigo-500/20 hover:opacity-95 transition-all duration-150 transform active:scale-[0.98]">
+                        Enter Ledger
+                    </button>
+                    
+                    <button type="button" onclick="showProfiles()" 
+                            class="w-full py-2.5 rounded-xl border border-slate-700/50 text-slate-400 text-sm font-medium hover:bg-white/5 transition">
+                        Back to Family Members
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function selectProfile(username, displayName, gradientClass, emoji) {
+            // Update hidden inputs and display data
+            document.getElementById('username-input').value = username;
+            
+            const avatarDiv = document.getElementById('selected-avatar');
+            avatarDiv.className = `w-20 h-20 rounded-full bg-gradient-to-tr ${gradientClass} flex items-center justify-center text-4xl shadow-xl mb-3`;
+            avatarDiv.innerHTML = emoji;
+            
+            document.getElementById('selected-name').innerText = displayName;
+            
+            // Hide profiles step and show password step
+            document.getElementById('profile-step').classList.add('hidden');
+            document.getElementById('password-form').classList.remove('hidden');
+            
+            // Focus password input
+            setTimeout(() => {
+                document.getElementById('password').focus();
+            }, 100);
+        }
+
+        function showProfiles() {
+            document.getElementById('password-form').classList.add('hidden');
+            document.getElementById('profile-step').classList.remove('hidden');
+            document.getElementById('password').value = '';
+        }
+
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+            
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                // Change to eye closed icon
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                `;
+            } else {
+                pwdInput.type = 'password';
+                // Change to eye open icon
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                `;
+            }
+        }
+
+        // If there was a previous error login attempt, remember user or show them the password panel
+        {% if attempted_username %}
+            const profiles = {
+                {% for user in users %}
+                '{{ user.username }}': { name: '{{ user.display_name }}', grad: '{{ user.gradient }}', emoji: '{{ user.avatar }}' },
+                {% endfor %}
+            };
+            const user = '{{ attempted_username }}';
+            if (profiles[user]) {
+                selectProfile(user, profiles[user].name, profiles[user].grad, profiles[user].emoji);
+            }
+        {% endif %}
+    </script>
+</body>
+</html>

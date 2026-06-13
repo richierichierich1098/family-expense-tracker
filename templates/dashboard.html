@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Wealth Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 leading-normal tracking-normal min-h-screen pb-20 md:pb-6">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <span class="text-xl sm:text-2xl">🏠</span>
+                <span class="text-base sm:text-lg font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent hidden sm:inline-block">Family Finance Ledger</span>
+                <span class="text-base font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent sm:hidden inline-block">Family Ledger</span>
+                
+                <!-- Desktop navigation tabs -->
+                <div class="hidden md:flex items-center gap-2 ml-4 border-l border-slate-800/60 pl-4">
+                    <a href="/" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'dashboard' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="/ledger" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'ledger' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Audit Ledger
+                    </a>
+                    <a href="/family" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'family' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Family Members
+                    </a>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- User Profile badge -->
+                <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-800 px-2.5 sm:px-3.5 py-1.5 rounded-full border border-slate-700/60">
+                    <span class="text-xs sm:text-sm">
+                        {% if current_user.avatar %}{{ current_user.avatar }}
+                        {% elif current_user.username == 'papa' %}👨
+                        {% elif current_user.username == 'mama' %}👩
+                        {% else %}👦{% endif %}
+                    </span>
+                    <span class="text-[11px] sm:text-xs font-semibold text-slate-200">{{ current_user.display_name }}</span>
+                    <span class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider font-semibold hidden md:inline-block">{{ current_user.role }}</span>
+                </div>
+                
+                <!-- Logout Button -->
+                <a href="/logout" class="text-[11px] sm:text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/50 hover:bg-rose-500/20 hover:border-rose-500/30 border border-slate-700/60 px-2.5 sm:px-3 py-1.5 rounded-full transition-all duration-150">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- Metrics Row: Live Bank Balances (Consolidated & Collapsible Tab) -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col gap-4">
+            <!-- Clickable Header Area -->
+            <div onclick="toggleAccountsList()" class="flex justify-between items-center cursor-pointer hover:bg-slate-50/40 p-2 -m-2 rounded-xl transition duration-150">
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
+                    <div class="flex items-center gap-3 mt-1.5">
+                        <span id="balance-value-total" class="text-4xl font-extrabold text-slate-900 hidden">₹{{ "{:,.2f}".format(total_balance) }}</span>
+                        <span id="balance-placeholder-total" class="text-4xl font-extrabold text-slate-900">₹ ••••••••</span>
+                        
+                        <!-- Toggle Privacy Button -->
+                        <button type="button" onclick="toggleSingleBalance(event, 'total')" class="text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200/60 px-2.5 py-1 rounded-full flex items-center gap-1.5 transition duration-150 text-xs font-semibold" title="Toggle Balance Privacy">
+                            <!-- SVG for Eye Open -->
+                            <svg id="eye-icon-total" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <!-- SVG for Eye Slash -->
+                            <svg id="eye-slash-icon-total" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                            </svg>
+                            <span id="balance-toggle-text-total">Show</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-teal-500"></span>
+                        Aggregated across {{ accounts|length }} accounts (click to view details)
+                    </p>
+                </div>
+                
+                <!-- Chevron Dropdown Arrow Indicator -->
+                <div class="text-slate-400 hover:text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 transition duration-150">
+                    <svg id="chevron-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Collapsible Account Breakdowns Grid -->
+            <div id="accounts-details-list" class="hidden border-t border-slate-100 pt-5 mt-2 transition-all duration-300">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {% for acc in accounts %}
+                    <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col justify-between hover:border-indigo-200/50 hover:bg-slate-50 transition duration-200">
+                        <div class="flex flex-col">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                                {% if "Cash" in acc[1] or "Wallet" in acc[1] %}💵 {{ acc[1] }}
+                                {% else %}🏦 {{ acc[1] }}{% endif %}
+                            </span>
+                            
+                            <div class="flex items-center justify-between gap-3 mt-1">
+                                <div class="flex-1">
+                                    <span id="balance-value-{{ acc[0] }}" class="text-xl font-extrabold text-slate-800 hidden">₹{{ "{:,.2f}".format(acc[3]) }}</span>
+                                    <span id="balance-placeholder-{{ acc[0] }}" class="text-xl font-extrabold text-slate-800">₹ ••••••••</span>
+                                </div>
+                                
+                                <!-- Individual Show/Hide Button -->
+                                <button type="button" onclick="toggleSingleBalance(event, '{{ acc[0] }}')" class="text-slate-500 hover:text-indigo-600 bg-white hover:bg-indigo-50 border border-slate-200/60 px-2 py-1 rounded-full flex items-center gap-1 transition duration-150 text-[10px] font-bold" title="Toggle Account Privacy">
+                                    <!-- SVG for Eye Open -->
+                                    <svg id="eye-icon-{{ acc[0] }}" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <!-- SVG for Eye Slash -->
+                                    <svg id="eye-slash-icon-{{ acc[0] }}" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                    </svg>
+                                    <span id="balance-toggle-text-{{ acc[0] }}">Show</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Add Account Card -->
+                    <div class="bg-indigo-50/20 p-4 rounded-xl border border-indigo-100/60 flex flex-col justify-between hover:border-indigo-200 transition duration-200">
+                        <form action="/add_account" method="POST" class="space-y-2.5">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-500/80 block">➕ Add New Account</span>
+                            <div class="space-y-2">
+                                <input type="text" name="account_name" required placeholder="Name (e.g. ICICI Bank, Paytm)" class="w-full bg-white border border-slate-200/80 rounded-lg p-2 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none placeholder:text-slate-400 text-slate-800">
+                                <div class="flex gap-2">
+                                    <input type="number" step="0.01" name="starting_balance" required placeholder="Start Balance (INR)" class="w-full bg-white border border-slate-200/80 rounded-lg p-2 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none placeholder:text-slate-400 text-slate-800">
+                                    <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3.5 py-2 rounded-lg text-xs transition duration-150 shadow-sm shrink-0">
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Body Grid: Input and Charting -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Log Entry Form Module -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-1">
+                <h3 class="text-lg font-bold text-slate-900 mb-1">Log Family Transaction</h3>
+                <p class="text-xs text-slate-400 mb-5">Record a cash flow element. Track allocations in real time.</p>
+                
+                <form action="/add" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Transaction Type</label>
+                        <input type="hidden" name="type" id="tx-type-input" value="Expense">
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Expense Toggle Button -->
+                            <button type="button" id="btn-expense" onclick="setTxType('Expense')"
+                                class="flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-rose-500 bg-rose-50/40 text-rose-700 font-bold transition-all duration-150">
+                                <span class="text-xl mb-1">📉</span>
+                                <span class="text-[11px] uppercase tracking-wider">Expense (-)</span>
+                            </button>
+                            <!-- Income Toggle Button -->
+                            <button type="button" id="btn-income" onclick="setTxType('Income')"
+                                class="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50/55 text-slate-500 hover:bg-slate-50 font-bold transition-all duration-150">
+                                <span class="text-xl mb-1">📈</span>
+                                <span class="text-[11px] uppercase tracking-wider">Income (+)</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Transaction Date</label>
+                        <input type="date" name="date" id="tx-date-input" required class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Source Account</label>
+                        <select name="account_name" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                            {% for acc in accounts %}
+                            <option value="{{ acc[1] }}">{{ acc[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Category Group</label>
+                        <select name="category_select" id="category-select" onchange="handleCategoryChange()" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                            <!-- Options will be loaded dynamically -->
+                        </select>
+                    </div>
+                    <!-- Custom Category Input (hidden by default) -->
+                    <div id="custom-category-container" class="hidden">
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5 mt-3">Custom Category Name</label>
+                        <input type="text" id="custom-category-input" name="custom_category" placeholder="e.g. Healthcare, Subscriptions" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Amount (INR)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-slate-400 font-bold text-sm">₹</span>
+                            <input type="number" step="0.01" name="amount" required placeholder="0.00" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl py-3 pl-7 pr-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Memo/Description</label>
+                        <input type="text" name="description" placeholder="What was this spent on?" class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 placeholder:text-slate-400">
+                    </div>
+                    <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-[0.99] transition duration-150 shadow-md shadow-slate-900/10">
+                        Commit Transaction
+                    </button>
+                </form>
+            </div>
+
+            <!-- Visualization Engine Module -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Expense Breakdown</h3>
+                    <p class="text-xs text-slate-400 mb-4">Proportional distribution across variable and fixed budget parameters.</p>
+                </div>
+                <div class="relative w-full max-w-sm mx-auto p-4 flex items-center justify-center min-h-[300px]">
+                    {% if chart_data %}
+                    <canvas id="expenseChart" class="max-h-[280px]"></canvas>
+                    {% else %}
+                    <div class="text-center text-slate-400 py-10">
+                        <span class="text-4xl block mb-2">📊</span>
+                        <p class="text-sm font-medium">No expense entries to visualize yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+
+    </main>
+
+    {% if chart_data %}
+    <!-- Chart Configuration Script -->
+    <script>
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        const chartData = {{ chart_data | tojson }};
+        
+        const labels = Object.keys(chartData);
+        const dataValues = Object.values(chartData);
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: dataValues,
+                    backgroundColor: ['#f43f5e', '#0ea5e9', '#eab308', '#8b5cf6', '#ec4899', '#14b8a6'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, padding: 15, font: { family: 'Outfit', size: 12 } } }
+                },
+                cutout: '72%'
+            }
+        });
+    </script>
+    {% endif %}
+
+    <!-- Global Helper Script for Transaction Entry Form -->
+    <script>
+        // Bound Categories from Backend (including custom ones)
+        const expenseCategories = {{ expense_categories | tojson }};
+        const incomeCategories = {{ income_categories | tojson }};
+
+        // Collapsible Accounts List State
+        let listVisible = false;
+        function toggleAccountsList() {
+            listVisible = !listVisible;
+            const detailsList = document.getElementById('accounts-details-list');
+            const chevronIcon = document.getElementById('chevron-icon');
+            
+            if (listVisible) {
+                detailsList.classList.remove('hidden');
+                chevronIcon.classList.add('rotate-180');
+            } else {
+                detailsList.classList.add('hidden');
+                chevronIcon.classList.remove('rotate-180');
+            }
+        }
+
+        // Privacy Toggle for a Single Balance
+        function toggleSingleBalance(event, id) {
+            if (event) event.stopPropagation(); // Prevent card collapse when toggling!
+            
+            const valueEl = document.getElementById(`balance-value-${id}`);
+            const placeholderEl = document.getElementById(`balance-placeholder-${id}`);
+            const eyeIcon = document.getElementById(`eye-icon-${id}`);
+            const eyeSlashIcon = document.getElementById(`eye-slash-icon-${id}`);
+            const toggleText = document.getElementById(`balance-toggle-text-${id}`);
+            
+            const isHidden = valueEl.classList.contains('hidden');
+            
+            if (isHidden) {
+                valueEl.classList.remove('hidden');
+                placeholderEl.classList.add('hidden');
+                if (eyeIcon) eyeIcon.classList.remove('hidden');
+                if (eyeSlashIcon) eyeSlashIcon.classList.add('hidden');
+                if (toggleText) toggleText.innerText = "Hide";
+            } else {
+                valueEl.classList.add('hidden');
+                placeholderEl.classList.remove('hidden');
+                if (eyeIcon) eyeIcon.classList.add('hidden');
+                if (eyeSlashIcon) eyeSlashIcon.classList.remove('hidden');
+                if (toggleText) toggleText.innerText = "Show";
+            }
+        }
+
+        // Custom Category Field Handler
+        function handleCategoryChange() {
+            const select = document.getElementById('category-select');
+            const customContainer = document.getElementById('custom-category-container');
+            const customInput = document.getElementById('custom-category-input');
+            
+            if (select.value === '__custom__') {
+                customContainer.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customContainer.classList.add('hidden');
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+
+        // Transaction Type Switches
+        function setTxType(type) {
+            document.getElementById('tx-type-input').value = type;
+            const btnExpense = document.getElementById('btn-expense');
+            const btnIncome = document.getElementById('btn-income');
+            const categorySelect = document.getElementById('category-select');
+            
+            // Hide custom category input initially
+            document.getElementById('custom-category-container').classList.add('hidden');
+            document.getElementById('custom-category-input').required = false;
+            document.getElementById('custom-category-input').value = '';
+            
+            let optionsHtml = '';
+            
+            if (type === 'Expense') {
+                // Active Expense Style
+                btnExpense.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-rose-500 bg-rose-50/40 text-rose-700 font-bold transition-all duration-150";
+                // Inactive Income Style
+                btnIncome.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50/55 text-slate-500 hover:bg-slate-50 font-bold transition-all duration-150";
+                
+                // Populate Expense Categories
+                expenseCategories.forEach(cat => {
+                    optionsHtml += `<option value="${cat}">${cat}</option>`;
+                });
+            } else {
+                // Active Income Style
+                btnIncome.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 text-emerald-700 font-bold transition-all duration-150";
+                // Inactive Expense Style
+                btnExpense.className = "flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 bg-slate-50/55 text-slate-500 hover:bg-slate-50 font-bold transition-all duration-150";
+                
+                // Populate Income Categories
+                incomeCategories.forEach(cat => {
+                    optionsHtml += `<option value="${cat}">${cat}</option>`;
+                });
+            }
+            
+            // Append Custom Category selection trigger
+            optionsHtml += `<option value="__custom__" class="font-bold text-indigo-600">+ Add Custom Category...</option>`;
+            categorySelect.innerHTML = optionsHtml;
+        }
+
+        // Quick Filters Date Range Selector Redirection
+        function setQuickFilter(preset) {
+            const today = new Date();
+            let fromDate = '';
+            let toDate = '';
+            
+            const formatDate = (date) => {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
+            
+            if (preset === 'today') {
+                fromDate = formatDate(today);
+                toDate = formatDate(today);
+            } else if (preset === 'this_month') {
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                fromDate = formatDate(firstDay);
+                toDate = formatDate(today);
+            } else if (preset === 'last_30') {
+                const pastDate = new Date();
+                pastDate.setDate(today.getDate() - 30);
+                fromDate = formatDate(pastDate);
+                toDate = formatDate(today);
+            }
+            
+            window.location.href = `/?from_date=${fromDate}&to_date=${toDate}`;
+        }
+
+        // Initialize state on DOM load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTxType('Expense');
+            
+            // Set transaction date input value to today by default
+            const dateInput = document.getElementById('tx-date-input');
+            if (dateInput && !dateInput.value) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+        });
+    </script>
+    <!-- Bottom Navigation Bar for Mobile -->
+    <div class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 text-white py-2.5 px-6 flex justify-around items-center z-50 md:hidden shadow-lg">
+        <a href="/" class="flex flex-col items-center gap-1 {% if active_page == 'dashboard' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">📊</span>
+            <span class="text-[10px] font-bold">Dashboard</span>
+        </a>
+        <a href="/ledger" class="flex flex-col items-center gap-1 {% if active_page == 'ledger' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">📜</span>
+            <span class="text-[10px] font-bold">Audit Ledger</span>
+        </a>
+        <a href="/family" class="flex flex-col items-center gap-1 {% if active_page == 'family' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">👥</span>
+            <span class="text-[10px] font-bold">Family</span>
+        </a>
+    </div>
+</body>
+</html>
