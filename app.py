@@ -122,14 +122,42 @@ def is_running_locally():
     return "localhost" in request.host or "127.0.0.1" in request.host or "192.168" in request.host
 
 def auto_sync_pull():
-    """Pulls the latest database from PythonAnywhere if running locally."""
+    """Pulls the latest database from PythonAnywhere if running locally, with safety checks."""
     if is_running_locally():
+        try:
+            # Check local transaction count and max ID to prevent overwriting new local entries
+            conn_local = sqlite3.connect(DB_FILE)
+            cursor_local = conn_local.cursor()
+            cursor_local.execute("SELECT COUNT(*), MAX(id) FROM transactions")
+            local_count, local_max_id = cursor_local.fetchone()
+            conn_local.close()
+        except Exception:
+            local_count, local_max_id = 0, 0
+
         try:
             response = requests.get(f"{LIVE_SYNC_URL}/api/db/download", params={"token": app.secret_key}, timeout=3)
             if response.status_code == 200:
-                with open(DB_FILE, "wb") as f:
+                temp_db = os.path.join(BASE_DIR, "temp_sync.db")
+                with open(temp_db, "wb") as f:
                     f.write(response.content)
-                update_account_balances()
+                
+                try:
+                    conn_temp = sqlite3.connect(temp_db)
+                    cursor_temp = conn_temp.cursor()
+                    cursor_temp.execute("SELECT COUNT(*), MAX(id) FROM transactions")
+                    temp_count, temp_max_id = cursor_temp.fetchone()
+                    conn_temp.close()
+                except Exception:
+                    temp_count, temp_max_id = 0, 0
+                
+                # Only overwrite local if the cloud database has equal or more transactions
+                if temp_count >= local_count or (temp_max_id and temp_max_id > (local_max_id or 0)):
+                    with open(DB_FILE, "wb") as f:
+                        f.write(response.content)
+                    update_account_balances()
+                
+                if os.path.exists(temp_db):
+                    os.remove(temp_db)
         except Exception:
             pass
 
