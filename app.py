@@ -118,6 +118,39 @@ def inject_is_localhost():
     is_local = "localhost" in request.host or "127.0.0.1" in request.host or "192.168" in request.host
     return dict(is_localhost=is_local)
 
+def is_running_locally():
+    return "localhost" in request.host or "127.0.0.1" in request.host or "192.168" in request.host
+
+def auto_sync_pull():
+    """Pulls the latest database from PythonAnywhere if running locally."""
+    if is_running_locally():
+        try:
+            response = requests.get(f"{LIVE_SYNC_URL}/api/db/download", params={"token": app.secret_key}, timeout=3)
+            if response.status_code == 200:
+                with open(DB_FILE, "wb") as f:
+                    f.write(response.content)
+                update_account_balances()
+        except Exception:
+            pass
+
+def auto_sync_push():
+    """Pushes the local database to PythonAnywhere if running locally."""
+    if is_running_locally():
+        try:
+            with open(DB_FILE, "rb") as f:
+                files = {"file": ("family_wealth.db", f, "application/x-sqlite3")}
+                requests.post(f"{LIVE_SYNC_URL}/api/db/upload", params={"token": app.secret_key}, files=files, timeout=3)
+        except Exception:
+            pass
+
+@app.before_request
+def before_request_hook():
+    # Only pull on GET page requests for authenticated sessions to keep it fast
+    if request.method == "GET" and not request.path.startswith("/static") and "user_id" in session:
+        # Avoid pulling when hitting API or local sync endpoints to prevent loops
+        if not request.path.startswith("/local/") and not request.path.startswith("/api/"):
+            auto_sync_pull()
+
 # Login Required Decorator
 def login_required(f):
     @wraps(f)
@@ -379,6 +412,7 @@ def add_transaction():
     
     # Re-calculate balances
     update_account_balances()
+    auto_sync_push()
     
     return redirect(url_for("dashboard"))
 
@@ -405,6 +439,7 @@ def add_account():
         pass
     conn.close()
     update_account_balances()
+    auto_sync_push()
     return redirect(url_for("dashboard"))
 
 @app.route("/delete/<int:tx_id>")
@@ -418,6 +453,7 @@ def delete_transaction(tx_id):
     
     # Re-calculate balances
     update_account_balances()
+    auto_sync_push()
     
     referrer = request.referrer or url_for("dashboard")
     return redirect(referrer)
@@ -462,6 +498,7 @@ def edit_transaction(tx_id):
         conn.close()
         
         update_account_balances()
+        auto_sync_push()
         return redirect(url_for("ledger"))
         
     # GET: Fetch references
@@ -537,6 +574,7 @@ def family():
                     VALUES (?, ?, ?, ?, ?)
                 ''', (username, hashed_pw, display_name, role, avatar))
                 conn.commit()
+                auto_sync_push()
                 return redirect(url_for("family"))
                 
     cursor.execute("SELECT id, username, display_name, role, avatar FROM users")
@@ -571,6 +609,7 @@ def delete_user(user_id):
     cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
     conn.close()
+    auto_sync_push()
     
     return redirect(url_for("family"))
 
