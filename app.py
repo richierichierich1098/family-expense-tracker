@@ -637,9 +637,92 @@ def delete_user(user_id):
     cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
     conn.close()
+    return redirect(url_for("family"))
+
+@app.route("/edit_account/<int:account_id>", methods=["GET", "POST"])
+@login_required
+def edit_account(account_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM accounts WHERE id = ?", (account_id,))
+    account = cursor.fetchone()
+    if not account:
+        conn.close()
+        return redirect(url_for("dashboard"))
+        
+    error = None
+    if request.method == "POST":
+        new_name = request.form.get("account_name", "").strip()
+        try:
+            new_starting = float(request.form.get("starting_balance", "0"))
+        except ValueError:
+            new_starting = 0.0
+            
+        if not new_name:
+            error = "Account name cannot be empty."
+        else:
+            # Check if name already exists on another account
+            cursor.execute("SELECT id FROM accounts WHERE account_name = ? AND id != ?", (new_name, account_id))
+            if cursor.fetchone():
+                error = f"An account named '{new_name}' already exists."
+            else:
+                # Update transactions referencing this account so they don't break/disassociate
+                cursor.execute("UPDATE transactions SET account_name = ? WHERE account_name = ?", (new_name, account[1]))
+                
+                # Update accounts table
+                cursor.execute('''
+                    UPDATE accounts 
+                    SET account_name = ?, starting_balance = ?
+                    WHERE id = ?
+                ''', (new_name, new_starting, account_id))
+                conn.commit()
+                conn.close()
+                
+                # Recalculate balances and push sync
+                update_account_balances()
+                auto_sync_push()
+                return redirect(url_for("dashboard"))
+                
+    # Get transaction count for this account to see if it is deletable
+    cursor.execute("SELECT COUNT(*) FROM transactions WHERE account_name = ?", (account[1],))
+    tx_count = cursor.fetchone()[0]
+    deletable = (tx_count == 0)
+    
+    conn.close()
+    return render_template("edit_account.html", account=account, deletable=deletable, tx_count=tx_count, error=error)
+
+@app.route("/delete_account/<int:account_id>")
+@login_required
+def delete_account(account_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT account_name FROM accounts WHERE id = ?", (account_id,))
+    account_row = cursor.fetchone()
+    if not account_row:
+        conn.close()
+        return redirect(url_for("dashboard"))
+        
+    account_name = account_row[0]
+    
+    # Check if there are transactions associated
+    cursor.execute("SELECT COUNT(*) FROM transactions WHERE account_name = ?", (account_name,))
+    tx_count = cursor.fetchone()[0]
+    
+    if tx_count > 0:
+        conn.close()
+        return "Access Denied: Cannot delete account. There are transaction entries logged under this account.", 400
+        
+    cursor.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+    conn.commit()
+    conn.close()
+    
+    # Recalculate balances and sync
+    update_account_balances()
     auto_sync_push()
     
-    return redirect(url_for("family"))
+    return redirect(url_for("dashboard"))
 
 # API endpoints on PythonAnywhere for DB Download / Upload
 @app.route("/api/db/download")

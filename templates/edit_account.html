@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Account - Family Finance Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 leading-normal tracking-normal min-h-screen pb-20 md:pb-6">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <span class="text-xl sm:text-2xl">🏠</span>
+                <span class="text-base sm:text-lg font-bold tracking-wide bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent">Family Finance Ledger</span>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-4">
+                <a href="/" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700/60 transition">
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-md mx-auto p-4 md:p-6 mt-6">
+        
+        <!-- Error / Status message -->
+        {% if error %}
+        <div class="mb-4 p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-sm font-medium">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Edit Account Card -->
+        <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 space-y-6">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Edit Account Settings</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Modify settings for account: {{ account[1] }}</p>
+            </div>
+            
+            <form action="/edit_account/{{ account[0] }}" method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Account Name</label>
+                    <input type="text" name="account_name" value="{{ account[1] }}" required class="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Starting Balance (INR)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3.5 text-slate-400 font-bold text-sm">₹</span>
+                        <input type="number" step="0.01" name="starting_balance" value="{{ account[2] }}" required class="w-full bg-slate-50 border border-slate-200/80 rounded-xl py-3 pl-7 pr-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition duration-150 text-sm text-slate-800">
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">Note: Changing the starting balance will automatically recalculate the live account balance correctly.</p>
+                </div>
+                
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition duration-150 shadow-sm text-sm">
+                        Save Changes
+                    </button>
+                    <a href="/" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-center transition duration-150 text-sm">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+
+            <hr class="border-slate-100">
+
+            <!-- Danger Zone -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-rose-500">Danger Zone</h4>
+                
+                {% if deletable %}
+                <div class="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 flex flex-col space-y-2">
+                    <span class="text-[11px] text-slate-500">No transactions are associated with this account. You can delete it permanently.</span>
+                    <a href="/delete_account/{{ account[0] }}" onclick="return confirm('Are you sure you want to delete this account permanently? This action cannot be undone.')" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-center text-xs transition duration-150 shadow-sm">
+                        Delete Account
+                    </a>
+                </div>
+                {% else %}
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col space-y-2">
+                    <span class="text-[11px] text-slate-500">⚠️ **Cannot Delete**: There are **{{ tx_count }}** transaction entries logged under this account in the ledger. You must first edit or delete those transactions before you can remove this account.</span>
+                    <button disabled class="w-full bg-slate-200 text-slate-400 font-bold py-2 rounded-xl text-xs cursor-not-allowed">
+                        Delete Account (Unavailable)
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
