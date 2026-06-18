@@ -69,16 +69,16 @@ def init_db():
             VALUES (?, ?, ?)
         ''', (name, bal, bal))
         
-    # Seed default family users if they don't exist
-    default_users = [
-        ("papa", "Papa", "Parent", "👨"),
-        ("mama", "Mama", "Parent", "👩"),
-        ("junior", "Junior", "Child", "👦"),
-        ("yesha", "Yesha", "Parent", "👩")
-    ]
-    for username, display_name, role, avatar in default_users:
-        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-        if not cursor.fetchone():
+    # Seed default family users if the database is completely empty
+    cursor.execute("SELECT COUNT(*) FROM users")
+    if cursor.fetchone()[0] == 0:
+        default_users = [
+            ("papa", "Papa", "Parent", "👨"),
+            ("mama", "Mama", "Parent", "👩"),
+            ("junior", "Junior", "Child", "👦"),
+            ("yesha", "Yesha", "Parent", "👩")
+        ]
+        for username, display_name, role, avatar in default_users:
             hashed_pw = generate_password_hash("family123")
             cursor.execute('''
                 INSERT INTO users (username, password_hash, display_name, role, avatar)
