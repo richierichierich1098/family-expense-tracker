@@ -115,6 +115,15 @@ def init_db():
                 INSERT OR IGNORE INTO categories (name, type)
                 VALUES (?, ?)
             ''', (name, cat_type))
+            
+    # Auto-migrate any existing categories from transactions table to categories table to prevent data loss
+    try:
+        cursor.execute("SELECT DISTINCT category, type FROM transactions WHERE category IS NOT NULL AND category != ''")
+        existing_tx_cats = cursor.fetchall()
+        for cat_name, cat_type in existing_tx_cats:
+            cursor.execute("INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)", (cat_name, cat_type))
+    except sqlite3.OperationalError:
+        pass
         
     conn.commit()
     conn.close()
