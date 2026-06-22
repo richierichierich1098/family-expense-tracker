@@ -36,6 +36,9 @@
                     <a href="/family" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'family' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
                         Family Members
                     </a>
+                    <a href="/categories" class="px-3 py-1.5 rounded-full text-xs font-bold transition {% if active_page == 'categories' %}bg-slate-800 text-teal-400 border border-slate-700/60{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Expense Groups
+                    </a>
                 </div>
             </div>
             
@@ -299,6 +302,10 @@
         <a href="/family" class="flex flex-col items-center gap-1 {% if active_page == 'family' %}text-teal-400{% else %}text-slate-400{% endif %}">
             <span class="text-lg">👥</span>
             <span class="text-[10px] font-bold">Family</span>
+        </a>
+        <a href="/categories" class="flex flex-col items-center gap-1 {% if active_page == 'categories' %}text-teal-400{% else %}text-slate-400{% endif %}">
+            <span class="text-lg">🏷️</span>
+            <span class="text-[10px] font-bold">Groups</span>
         </a>
     </div>
 

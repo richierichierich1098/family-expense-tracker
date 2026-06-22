@@ -84,6 +84,37 @@ def init_db():
                 INSERT INTO users (username, password_hash, display_name, role, avatar)
                 VALUES (?, ?, ?, ?, ?)
             ''', (username, hashed_pw, display_name, role, avatar))
+            
+    # 4. Categories Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            UNIQUE(name, type)
+        )
+    ''')
+    
+    # Seed default categories if the table is empty
+    cursor.execute("SELECT COUNT(*) FROM categories")
+    if cursor.fetchone()[0] == 0:
+        default_categories = [
+            ("Groceries & Food", "Expense"),
+            ("Utilities & Bills", "Expense"),
+            ("Fuel & Transport", "Expense"),
+            ("Insurance & EMIs", "Expense"),
+            ("Entertainment", "Expense"),
+            ("Other", "Expense"),
+            ("Salary / General Revenue", "Income"),
+            ("Investments Dividend", "Income"),
+            ("Gifts / Pocket Money", "Income"),
+            ("Other", "Income")
+        ]
+        for name, cat_type in default_categories:
+            cursor.execute('''
+                INSERT OR IGNORE INTO categories (name, type)
+                VALUES (?, ?)
+            ''', (name, cat_type))
         
     conn.commit()
     conn.close()
@@ -291,17 +322,11 @@ def dashboard():
     chart_data = {row[0]: row[1] for row in chart_raw}
     
     # Dynamic Categories extraction
-    default_expenses = ["Groceries & Food", "Utilities & Bills", "Fuel & Transport", "Insurance & EMIs", "Entertainment"]
-    default_incomes = ["Salary / General Revenue", "Investments Dividend", "Gifts / Pocket Money"]
+    cursor.execute("SELECT name FROM categories WHERE type='Expense' ORDER BY name ASC")
+    expense_categories = [row[0] for row in cursor.fetchall()]
     
-    cursor.execute("SELECT DISTINCT category FROM transactions WHERE type='Expense'")
-    db_expenses = [row[0] for row in cursor.fetchall() if row[0]]
-    
-    cursor.execute("SELECT DISTINCT category FROM transactions WHERE type='Income'")
-    db_incomes = [row[0] for row in cursor.fetchall() if row[0]]
-    
-    expense_categories = list(dict.fromkeys(default_expenses + db_expenses))
-    income_categories = list(dict.fromkeys(default_incomes + db_incomes))
+    cursor.execute("SELECT name FROM categories WHERE type='Income' ORDER BY name ASC")
+    income_categories = [row[0] for row in cursor.fetchall()]
     
     conn.close()
     
@@ -431,6 +456,11 @@ def add_transaction():
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    
+    # Auto-save custom category
+    if category == request.form.get("custom_category", "").strip() and category.lower() != "other":
+        cursor.execute("INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)", (category, t_type))
+        
     cursor.execute('''
         INSERT INTO transactions (date, description, amount, type, account_name, category, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -517,6 +547,10 @@ def edit_transaction(tx_id):
             
         user_id = int(request.form.get("user_id", tx[7]))
         
+        # Auto-save custom category
+        if category == request.form.get("custom_category", "").strip() and category.lower() != "other":
+            cursor.execute("INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)", (category, t_type))
+
         cursor.execute('''
             UPDATE transactions 
             SET date = ?, description = ?, amount = ?, type = ?, account_name = ?, category = ?, user_id = ?
@@ -537,17 +571,11 @@ def edit_transaction(tx_id):
     users = cursor.fetchall()
     
     # Categories
-    default_expenses = ["Groceries & Food", "Utilities & Bills", "Fuel & Transport", "Insurance & EMIs", "Entertainment"]
-    default_incomes = ["Salary / General Revenue", "Investments Dividend", "Gifts / Pocket Money"]
+    cursor.execute("SELECT name FROM categories WHERE type='Expense' ORDER BY name ASC")
+    expense_categories = [row[0] for row in cursor.fetchall()]
     
-    cursor.execute("SELECT DISTINCT category FROM transactions WHERE type='Expense'")
-    db_expenses = [row[0] for row in cursor.fetchall() if row[0]]
-    
-    cursor.execute("SELECT DISTINCT category FROM transactions WHERE type='Income'")
-    db_incomes = [row[0] for row in cursor.fetchall() if row[0]]
-    
-    expense_categories = list(dict.fromkeys(default_expenses + db_expenses))
-    income_categories = list(dict.fromkeys(default_incomes + db_incomes))
+    cursor.execute("SELECT name FROM categories WHERE type='Income' ORDER BY name ASC")
+    income_categories = [row[0] for row in cursor.fetchall()]
     
     conn.close()
     
@@ -808,6 +836,106 @@ def local_sync_push():
             return jsonify({"status": "error", "message": f"Server error: {response.text}"}), response.status_code
     except Exception as e:
         return jsonify({"status": "error", "message": f"Connection failed: {str(e)}"}), 500
+
+@app.route("/categories", methods=["GET", "POST"])
+@login_required
+def categories():
+    error = None
+    success = None
+    
+    redirect_error = request.args.get("error")
+    redirect_success = request.args.get("success")
+    if redirect_error:
+        error = redirect_error
+    if redirect_success:
+        success = redirect_success
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        if session.get("role") != "Parent":
+            conn.close()
+            return "Access Denied: Only Parent accounts can manage categories.", 403
+            
+        name = request.form.get("name", "").strip()
+        cat_type = request.form.get("type", "Expense").strip()
+        
+        if not name:
+            error = "Category name cannot be empty."
+        elif name.lower() == "other":
+            error = "The category name 'Other' is reserved."
+        else:
+            try:
+                cursor.execute("INSERT INTO categories (name, type) VALUES (?, ?)", (name, cat_type))
+                conn.commit()
+                auto_sync_push()
+                success = f"Category '{name}' added successfully."
+            except sqlite3.IntegrityError:
+                error = f"Category '{name}' already exists as an {cat_type}."
+
+    # Retrieve all categories and their transaction usage counts
+    cursor.execute("SELECT id, name, type FROM categories ORDER BY type DESC, name ASC")
+    raw_cats = cursor.fetchall()
+    
+    categories_list = []
+    for cat_id, cat_name, type_val in raw_cats:
+        cursor.execute("SELECT COUNT(*) FROM transactions WHERE category = ? AND type = ?", (cat_name, type_val))
+        count = cursor.fetchone()[0]
+        categories_list.append({
+            "id": cat_id,
+            "name": cat_name,
+            "type": type_val,
+            "tx_count": count
+        })
+        
+    conn.close()
+
+    current_user = {
+        "username": session.get("username"),
+        "display_name": session.get("display_name"),
+        "role": session.get("role"),
+        "avatar": session.get("avatar")
+    }
+
+    return render_template("categories.html", 
+                           categories=categories_list, 
+                           error=error, 
+                           success=success,
+                           current_user=current_user,
+                           active_page="categories")
+
+@app.route("/categories/delete/<int:category_id>")
+@login_required
+def delete_category(category_id):
+    if session.get("role") != "Parent":
+        return "Access Denied: Only Parent accounts can manage categories.", 403
+        
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT name, type FROM categories WHERE id = ?", (category_id,))
+    cat = cursor.fetchone()
+    if not cat:
+        conn.close()
+        return redirect(url_for("categories"))
+        
+    cat_name, cat_type = cat
+    
+    if cat_name.lower() == "other":
+        conn.close()
+        return redirect(url_for("categories", error="The fallback category 'Other' cannot be deleted."))
+        
+    # Reassign transactions utilizing this category to 'Other'
+    cursor.execute("UPDATE transactions SET category = 'Other' WHERE category = ? AND type = ?", (cat_name, cat_type))
+    
+    # Delete the category
+    cursor.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+    conn.commit()
+    conn.close()
+    
+    auto_sync_push()
+    return redirect(url_for("categories", success=f"Category '{cat_name}' deleted successfully."))
 
 if __name__ == "__main__":
     init_db()
