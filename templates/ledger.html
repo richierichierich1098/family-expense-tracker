@@ -425,6 +425,13 @@
             const tableRows = table.querySelectorAll("tbody tr");
             let currentDay = "";
             let rowCount = 0;
+            let totalDebits = 0;
+            let totalCredits = 0;
+            
+            // Helper to clean emojis and non-standard symbols
+            const cleanText = (text) => {
+                return text.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim();
+            };
             
             tableRows.forEach(row => {
                 if (row.classList.contains("bg-slate-100/50")) {
@@ -444,36 +451,83 @@
                 const loggedBy = cells[4].textContent.trim();
                 const magnitude = cells[5].textContent.trim();
                 
+                // Clean data
+                const cleanDay = cleanText(currentDay);
+                const cleanTime = cleanText(time);
+                const cleanDetails = cleanText(details);
+                const cleanCategory = cleanText(category);
+                const cleanPaymentNode = cleanText(paymentNode);
+                const cleanLoggedBy = cleanText(loggedBy);
+                
+                // Parse amounts for Debit / Credit columns
+                const cleanAmt = parseFloat(magnitude.replace(/[+\-₹,\s]/g, "")) || 0;
+                const isIncome = magnitude.includes("+");
+                
+                let debitVal = "-";
+                let creditVal = "-";
+                let voucherType = "Payment";
+                
+                if (isIncome) {
+                    debitVal = `Rs. ${cleanAmt.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                    totalDebits += cleanAmt;
+                    voucherType = "Receipt";
+                } else {
+                    creditVal = `Rs. ${cleanAmt.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                    totalCredits += cleanAmt;
+                    voucherType = "Payment";
+                }
+                
+                // Format particulars column stacked like Tally
+                const particulars = `${cleanDetails}\n[${cleanCategory}] | By: ${cleanLoggedBy}`;
+                
                 rows.push([
-                    `${currentDay} ${time}`,
-                    details,
-                    category,
-                    paymentNode,
-                    loggedBy,
-                    magnitude
+                    `${cleanDay} ${cleanTime}`,
+                    particulars,
+                    cleanPaymentNode,
+                    voucherType,
+                    debitVal,
+                    creditVal
                 ]);
                 rowCount++;
             });
             
             if (rowCount === 0) {
-                alert("No transaction entries found for the selected dates.");
+                alert("No transaction entries found for the selected filters.");
                 return;
             }
+            
+            // Build Totals Footer Row
+            const footerRow = [[
+                "Total",
+                "",
+                "",
+                "",
+                `Rs. ${totalDebits.toLocaleString('en-IN', {minimumFractionDigits: 2})}`,
+                `Rs. ${totalCredits.toLocaleString('en-IN', {minimumFractionDigits: 2})}`
+            ]];
             
             // Render Table via jsPDF-AutoTable
             doc.autoTable({
                 startY: 75,
-                head: [['Timestamp', 'Details', 'Category', 'Payment Account', 'Logged By', 'Amount']],
+                head: [['Date & Time', 'Particulars', 'Account', 'Voucher Type', 'Debit (Dr) / Inflow', 'Credit (Cr) / Outflow']],
                 body: rows,
-                theme: 'striped',
-                headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 }, // Slate-900
+                foot: footerRow,
+                theme: 'grid', // Tally style ledger grid
+                headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 }, // Slate-900
+                footStyles: { fillColor: [241, 245, 249], fontStyle: 'bold', fontSize: 8, textColor: [15, 23, 42] }, // Slate-100 footer
                 columnStyles: {
-                    5: { halign: 'right', fontStyle: 'bold' } // Right align amount
+                    0: { cellWidth: 30 },
+                    1: { cellWidth: 52 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 22 },
+                    4: { halign: 'right', cellWidth: 24 },
+                    5: { halign: 'right', cellWidth: 24 }
                 },
-                styles: { fontSize: 8, cellPadding: 3 }
+                styles: { fontSize: 7.5, cellPadding: 2.5, valign: 'middle' }
             });
             
             doc.save(`family_ledger_report_${fromDateStr}_to_${toDateStr}.pdf`);
+        }
         }
     </script>
 </body>
