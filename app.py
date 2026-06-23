@@ -363,9 +363,14 @@ def ledger():
     
     from_date = request.args.get("from_date", "").strip()
     to_date = request.args.get("to_date", "").strip()
+    selected_account = request.args.get("account", "").strip()
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    
+    # Get all account names for filter dropdown
+    cursor.execute("SELECT account_name FROM accounts ORDER BY account_name ASC")
+    accounts_list = [row[0] for row in cursor.fetchall()]
     
     # Build query for transactions
     query = '''
@@ -382,6 +387,9 @@ def ledger():
     if to_date:
         conditions.append("date(t.date) <= date(?)")
         params.append(to_date)
+    if selected_account:
+        conditions.append("t.account_name = ?")
+        params.append(selected_account)
         
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
@@ -401,6 +409,10 @@ def ledger():
     if to_date:
         summary_conditions.append("date(date) <= date(?)")
         summary_params.append(to_date)
+    if selected_account:
+        summary_conditions.append("account_name = ?")
+        summary_params.append(selected_account)
+        
     if summary_conditions:
         period_summary_query += " WHERE " + " AND ".join(summary_conditions)
     period_summary_query += " GROUP BY type"
@@ -438,6 +450,8 @@ def ledger():
                            current_user=current_user, 
                            from_date=from_date,
                            to_date=to_date,
+                           accounts=accounts_list,
+                           selected_account=selected_account,
                            period_summary=period_summary,
                            active_page="ledger")
 
